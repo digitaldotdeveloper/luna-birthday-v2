@@ -27,7 +27,7 @@ export const dive = {
 /* where she sits in frame, and how far ahead of her the ground is */
 const HER_Y = 0.50, HER_Z = 0.30, Z_NEAR = 0.09;
 const MAXV = 640, KEY_V = 620;
-const DRAG_GAIN = 1.35;
+const DRAG_GAIN = 2.2;          // a thumb's width crosses a lot of sky
 const HAIR_TO = 0.44, STRIPS = 22;
 
 let drag = null;
@@ -117,7 +117,7 @@ export function updateDive(dt){
   if (keyHeld.size) diveBy((keyHeld.has('R') - keyHeld.has('L')) * KEY_V * V.SC * dt);
 
   /* she does not snap to the finger, she swings under it */
-  const nx = dive.x + (dive.tx - dive.x) * Math.min(1, dt * 9);
+  const nx = dive.x + (dive.tx - dive.x) * Math.min(1, dt * 15);
   const v  = (nx - dive.x) / Math.max(dt, 0.0001);
   dive.x = nx;
   dive.vx += (v - dive.vx) * Math.min(1, dt * 10);

@@ -125,8 +125,17 @@ const bgm = document.getElementById('bgm');
 let fadeTimer = null;
 let started = false;
 
+/* iOS 16.4+ : without this the ring/silent switch mutes the whole thing.
+   Everywhere else the API is absent and nothing happens. */
+function audioSession(){
+  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch(e){}
+}
+audioSession();
+
 export function primeMusic(){
   if (!bgm) return;
+  audioSession();
+  bgm.muted = false;
   bgm.preload = 'auto';
   bgm.volume = 0;
   try { bgm.load(); } catch(e){}
@@ -180,7 +189,12 @@ if (muteBtn){
 
 /* a phone that locks its screen should not come back to silence */
 document.addEventListener('visibilitychange', () => {
-  if (!bgm || muted || !started) return;
-  if (document.hidden) bgm.pause();
-  else bgm.play().catch(() => {});
+  if (document.hidden){ if (bgm) bgm.pause(); return; }
+  ac();                                   // Android suspends the context in the background
+  if (bgm && !muted && started) bgm.play().catch(() => {});
 });
+/* and if it ever does come back silent, the next tap anywhere fixes it */
+window.addEventListener('pointerdown', () => {
+  ac();
+  if (bgm && !muted && started && bgm.paused) bgm.play().catch(() => {});
+}, { passive:true });

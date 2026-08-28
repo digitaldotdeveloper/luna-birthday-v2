@@ -8,7 +8,7 @@
    ========================================================================= */
 import { CONFIG } from './config.js';
 import { load, warm, src } from './art.js';
-import { V, resize as worldResize, ctx, runner, firass, invalidate,
+import { V, resize as worldResize, softResize, ctx, runner, firass, invalidate,
          drawWorld, drawNear, drawRunner, drawFirass, stepParticles,
          stepSparks, drain, POSE } from './world.js';
 import { $, toast, wait, term, fxResize, fxFrame, ui } from './fx.js';
@@ -29,7 +29,16 @@ function resizeAll(){
   worldResize();
   fxResize();
 }
-window.addEventListener('resize', resizeAll);
+let reflow = 0;
+window.addEventListener('resize', () => {
+  cancelAnimationFrame(reflow);
+  reflow = requestAnimationFrame(() => {
+    if (window.innerWidth === V.W && Math.abs(window.innerHeight - V.H) < 90){
+      softResize(); fxResize(); return;
+    }
+    resizeAll();
+  });
+});
 window.addEventListener('orientationchange', () => setTimeout(resizeAll, 250));
 
 /* -------------------------------------------------------------- input */

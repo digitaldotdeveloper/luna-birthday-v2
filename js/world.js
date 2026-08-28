@@ -45,6 +45,15 @@ const RUN_CELLS = 5, POSE_CELLS = 4;
    cell than of a run cell, so pose cells draw taller to keep her one size */
 const POSE_SCALE = 1.10;
 
+/** The cheap path: the address bar slid, nothing about the scene changed.
+ *  Only the backing store is resized — the band positions deliberately stay
+ *  put, so the horizon does not jump every time she scrolls a thumb. */
+export function softResize(){
+  V.H = window.innerHeight;
+  cv.width = Math.round(V.W * V.DPR); cv.height = Math.round(V.H * V.DPR);
+  ctx.setTransform(V.DPR, 0, 0, V.DPR, 0, 0);
+}
+
 export function resize(){
   V.DPR = Math.min(window.devicePixelRatio || 1, 2);
   V.W = window.innerWidth; V.H = window.innerHeight;
