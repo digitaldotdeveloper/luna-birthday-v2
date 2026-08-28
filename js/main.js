@@ -13,7 +13,7 @@ import { V, resize as worldResize, softResize, ctx, runner, firass, invalidate,
          stepSparks, drain, postFX, POOL_KEY, CANDLE_KEY, POSE } from './world.js';
 import { $, toast, wait, term, fxResize, fxFrame, ui } from './fx.js';
 import { tone, sfx, music, muted } from './audio.js';
-import { runAct1, runBoot } from './act1.js';
+import { runAct1 } from './act1.js';
 import { run, startRun, updateRun, drawRun, jump, release, retry } from './run.js';
 import { dive, startDive, updateDive, drawDive, pullChute,
          divePointerDown, divePointerMove, divePointerUp,
@@ -129,50 +129,28 @@ function frame(now){
 const ACTS = ['card','world','run','photo','hunt','quiz','doors','cake','finale','secret'];
 
 async function openWorld(){
-  /* the doorway of light, and then the place behind it */
-  await load('portal');
-  const portal = document.createElement('img');
-  portal.src = src('scenePortal');
-  portal.alt = '';
-  portal.decoding = 'async';
-  portal.style.cssText =
-    'position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:43;' +
-    'opacity:0;transform:scale(1.02);transition:opacity 1s ease,transform 4.4s ease-in;';
-  document.body.appendChild(portal);
-  await wait(40);
-  portal.style.opacity = '1';
-  portal.style.transform = 'scale(1.9)';
-  sfx.boot();
-  await wait(2600);
-
+  /* The screen has just died. There is no boot, no portal and no welcome any
+     more — the crash IS the transition, and what is behind it is the world,
+     already there, with every colour taken out of it. */
   await load('world');
   mode = 'world';
   V.colour = 0;
-  /* she is standing in it looking up, not frozen halfway through a stride */
   runner.pose = POSE.IDLE;
   invalidate();
-  portal.style.transition = 'opacity 1.4s ease, transform 4.4s ease-in';
-  portal.style.opacity = '0';
-  term.close();
-  await wait(1500);
-  portal.remove();
+  await wait(700);
 
-  /* "WELCOME, LUNA." over a world with every colour taken out of it */
+  /* one line, over the drained world, and then he asks her the question */
   term.el().innerHTML = '';
   $('term').classList.add('clear');
   term.open(false);
-  await term.type(CONFIG.WELCOME, { speed:90, cls:'cap' });
-  await wait(1500);
-  await term.type(CONFIG.WELCOME2, { speed:44, cls:'big' });
-  await wait(2000);
+  await term.type(CONFIG.ACT1.CRASH_LINE, { speed:40, cls:'big' });
+  await wait(1600);
   term.close();
   $('term').classList.remove('clear');
-  await wait(900);
+  await wait(520);
 
-  /* the gate. He is standing right there while she answers it. */
   firass.want = 1;
   firass.x = V.W * 0.66;
-  runner.pose = POSE.IDLE;
   await askColour();
   firass.want = 0;
   V.unlocking = true;                 // her colour floods everything
@@ -196,10 +174,8 @@ async function story(from){
   const doIt = name => ACTS.indexOf(name) >= at;
 
   if (doIt('card')){
-    warm('portal');
+    warm('world');            // ready by the time the screen breaks
     await runAct1();
-    warm('world');
-    await runBoot();
   }
 
   if (doIt('world') && at <= ACTS.indexOf('world')) await openWorld();

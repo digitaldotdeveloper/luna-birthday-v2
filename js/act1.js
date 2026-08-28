@@ -6,8 +6,8 @@
    `malfunction()` on it has to feel like real hardware giving up.
    ========================================================================= */
 import { CONFIG } from './config.js';
-import { $, term, wait, sparkles, crack, clearCracks, startRush, stopRush } from './fx.js';
-import { sfx, tone, noise, playCheesy, warpDown, primeMusic, ac, buzz } from './audio.js';
+import { $, wait, sparkles, crack, clearCracks } from './fx.js';
+import { sfx, playCheesy, warpDown, primeMusic, ac, buzz } from './audio.js';
 
 const A = CONFIG.ACT1;
 
@@ -41,7 +41,7 @@ function fakeLoad(){
       pct.textContent = p + '%';
       txt.textContent = label;
       if (step % 2) sfx.type();
-      setTimeout(run, 260 + Math.random() * 420);
+      setTimeout(run, 190 + Math.random() * 260);
     };
     run();
   });
@@ -79,17 +79,17 @@ async function malfunction(){
   for (let i = 0; i < A.ERRORS.length; i++){
     dialog(A.ERRORS[i], i);
     buzz(18);
-    await wait(620 - i * 120);
+    await wait(560 - i * 200);
   }
-  await wait(300);
+  await wait(180);
 
   el.classList.add('glitch');
   sfx.glitch();
   $('ieStatusTxt').textContent = 'Not responding…';
   $('ieTitle').textContent = 'Ha̷p̶p̷y̸ B̷i̶r̴t̷h̶d̸a̶y̷ ̴L̸u̷n̶a̸!̷!̷!̶';
 
-  for (let i = 0; i < 5; i++){
-    await wait(150 + Math.random() * 200);
+  for (let i = 0; i < 3; i++){
+    await wait(120 + Math.random() * 150);
     sfx.glitch();
     el.classList.add('invert');
     await wait(60 + Math.random() * 70);
@@ -137,52 +137,7 @@ export async function runAct1(){
 
   $('act1').classList.add('over');       // everything on the page stops moving
   clearInterval(tick);
-  await wait(1150);                      // the dead beat. Let it be awkward.
+  await wait(620);                       // just long enough to read "the end"
 
   await malfunction();
-
-  /* black screen. It talks. */
-  term.open(true);
-  term.clear();
-  await wait(700);
-  await term.script([
-    [A.APOLOGY[0], { speed:52, after:760 }],
-    [A.APOLOGY[1], { speed:40, after:900 }],
-    [A.APOLOGY[2], { speed:34, after:1500 }],
-    ['',           { after:1200 }],
-    [A.APOLOGY[4], { speed:60, after:1100 }]
-  ]);
-  await wait(500);
-}
-
-/* ============================================================== the boot
-   It reboots as something that was clearly built on purpose. This is also
-   where LUNA.EXE gets its name, so the secret ending has something to
-   come back to.                                                          */
-export async function runBoot(){
-  term.clear();
-  sfx.boot();
-  await term.type('LUNA.EXE', { speed:70, cls:'cap' });
-  await wait(560);
-  for (const [what, how] of CONFIG.BOOT){
-    const dots = '.'.repeat(Math.max(2, 26 - what.length));
-    const row = await term.type(what + ' ' + dots + ' ', { speed:12 });
-    await wait(180 + Math.random() * 260);
-    const s = document.createElement('span');
-    s.className = how === 'ok' ? 'ok' : 'warn';
-    s.textContent = how;
-    row.appendChild(s);
-    sfx.type();
-    await wait(150);
-  }
-  await wait(800);
-  term.clear();
-  await wait(300);
-
-  /* and then it stops being a terminal */
-  startRush();
-  sfx.whoosh();
-  $('term').classList.remove('plain');
-  await wait(2600);
-  stopRush();
 }

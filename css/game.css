@@ -62,6 +62,9 @@ canvas#fx{ z-index:44; pointer-events:none; background:transparent; }
   animation:caret 1s steps(1) infinite;
 }
 @keyframes caret{ 50%{ opacity:0 } }
+/* over the world the line is white serif, so a terminal-green block caret
+   reads as a highlighter. It takes the colour of whatever it is typing. */
+#termInner .big.caret::after, #termInner .cap.caret::after{ color:inherit; }
 
 /* =====================================================================
    HUD — two small readouts that quietly disappear as the night goes on

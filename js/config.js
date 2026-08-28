@@ -43,47 +43,22 @@ export const CONFIG = {
 
     /* the fake progress bar that lies to her before the page even loads */
     LOADING: [
-      [ 4,  "loading birthday…"],
-      [31, "loading birthday…"],
-      [33, "loading balloons…"],
-      [67, "loading balloons…"],
+      [ 9, "loading birthday…"],
+      [46, "loading balloons…"],
       [69, "almost there…"],
-      [70, "almost there…"],
       [71, "almost there…"],
-      [99, "almost there…"],
       [100,"done!!!"]
     ],
 
     /* what the machine says as it falls over */
     ERRORS: [
       "birthday.html has performed an illegal operation.",
-      "Cannot find file: EFFORT.DLL",
-      "Not enough memory to display this much love.",
-      "birthday.html is not responding."
+      "Cannot find file: EFFORT.DLL"
     ],
 
-    /* the beat after everything dies. One line at a time, in the dark. */
-    APOLOGY: [
-      "Okay.",
-      "You actually clicked it.",
-      "I spent approximately 0 seconds making that.",
-      "",                       // the pause is a line of its own
-      "Let's try again."
-    ]
+    /* the one thing said after the screen dies, before he asks her anything */
+    CRASH_LINE: "Lol the look on your face."
   },
-
-  /* =======================================================================
-     ACT 2 — the boot, and the world opening
-     ===================================================================== */
-  BOOT: [
-    ["loading world",         "ok"],
-    ["loading her",           "ok"],
-    ["loading him",           "barely"],
-    ["loading 23 candles",    "ok"],
-    ["loading actual effort", "ok"]
-  ],
-  WELCOME:  "WELCOME, LUNA.",
-  WELCOME2: "Your birthday starts here.",
 
   /* =======================================================================
      ACT 3 — the run. She is recovering a corrupted photo, one block at a time

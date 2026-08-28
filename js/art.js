@@ -48,7 +48,6 @@ const SRC = {
   sceneMemory:  'assets/scene-memory.webp',
   sceneWeird:   'assets/scene-weird.webp',
   sceneSecret:  'assets/scene-secret.webp',
-  scenePortal:  'assets/scene-portal.webp',
   sceneCake:    'assets/scene-cakeroom.webp',
   sceneHunt:    'assets/scene-huntroom.webp'
 };
@@ -59,7 +58,6 @@ export function src(key){ return SRC[key]; }
 const GROUPS = {
   world: ['mountains','chalet','floor','water','bunting','lounger','cabana',
           'firebowl','champagne','gifts','floaties','planter','run','poses','himstand'],
-  portal:['scenePortal'],
   run:   ['shakes','himcake'],
   hunt:  ['sceneHunt','objects','poses2'],
   quiz:  ['himposes'],
