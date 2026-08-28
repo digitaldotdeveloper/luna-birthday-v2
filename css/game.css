@@ -119,6 +119,19 @@ body.diving  #toast{ top:9%; font-size:21px; }
   color:var(--ink); overflow:hidden;
 }
 .scene.on{ opacity:1; pointer-events:auto; }
+/* a soft bar of light crosses the panel as it arrives. It is one element and
+   it never repeats, so it reads as a camera finding the scene. */
+.scene::after{
+  content:""; position:absolute; inset:0; pointer-events:none; opacity:0;
+  background:linear-gradient(105deg, rgba(255,255,255,0) 38%,
+             rgba(226,206,255,.13) 50%, rgba(255,255,255,0) 62%);
+}
+.scene.on::after{ animation:sweep 1.15s ease-out .1s 1 both; }
+@keyframes sweep{
+  0%  { opacity:0; transform:translateX(-38%) }
+  35% { opacity:1 }
+  100%{ opacity:0; transform:translateX(38%) }
+}
 .scene h1{
   font-family:'Fraunces',Georgia,serif; font-style:italic; font-weight:600;
   font-size:clamp(31px,9.2vw,48px); margin:0 0 13px; line-height:1.1;
@@ -223,21 +236,36 @@ body.diving  #toast{ top:9%; font-size:21px; }
 #huntSpots{ position:absolute; inset:0; }
 /* each object sits at a percentage of the picture, so it follows the crop */
 .spot{
-  position:absolute; width:19%; aspect-ratio:1/1; transform:translate(-50%,-50%);
+  position:absolute; width:19%; aspect-ratio:1/1;
   border:0; padding:0; background:transparent; cursor:pointer;
   background-repeat:no-repeat; background-position:center; background-size:contain;
   filter:brightness(.62) saturate(.6) drop-shadow(0 6px 16px rgba(0,0,0,.7));
-  transition:transform .3s cubic-bezier(.2,.9,.3,1), filter .45s ease, opacity .5s ease;
-  animation:glint 3.4s ease-in-out infinite;
+  transition:filter .45s ease, opacity .5s ease;
+  /* two animations at once: it drifts, and it catches the light. The
+     translate(-50%,-50%) has to live INSIDE the keyframes, because a
+     transform animation would otherwise throw the centring away. */
+  animation:bobSpot 4.6s ease-in-out infinite, glint 3.4s ease-in-out infinite;
 }
-@keyframes glint{ 0%,100%{ opacity:.72 } 50%{ opacity:1 } }
-.spot:active{ transform:translate(-50%,-50%) scale(.9); }
+@keyframes bobSpot{
+  0%,100%{ transform:translate(-50%,-50%) translateY(0) rotate(0deg) }
+  50%    { transform:translate(-50%,-50%) translateY(-7px) rotate(1.4deg) }
+}
+@keyframes glint{ 0%,100%{ opacity:.70 } 50%{ opacity:1 } }
+.spot:active{ animation:none; transform:translate(-50%,-50%) scale(.9); }
 .spot.hit{
-  filter:brightness(1.25) saturate(1.35)
-         drop-shadow(0 0 24px rgba(201,164,255,.95)) drop-shadow(0 8px 20px rgba(0,0,0,.7));
-  animation:none; opacity:1;
+  filter:brightness(1.3) saturate(1.4)
+         drop-shadow(0 0 26px rgba(201,164,255,.95)) drop-shadow(0 8px 20px rgba(0,0,0,.7));
+  opacity:1;
+  animation:foundPop .62s cubic-bezier(.2,1.5,.35,1) 1 both,
+            bobSpot 4.6s ease-in-out .62s infinite;
 }
-.spot.dud{ animation:none; opacity:.5; filter:brightness(.5) saturate(.35) grayscale(.5); }
+@keyframes foundPop{
+  0%  { transform:translate(-50%,-50%) scale(1) }
+  40% { transform:translate(-50%,-50%) scale(1.34) rotate(-4deg) }
+  100%{ transform:translate(-50%,-50%) scale(1.12) }
+}
+.spot.dud{ animation:none; opacity:.5; transform:translate(-50%,-50%) scale(.94);
+           filter:brightness(.5) saturate(.35) grayscale(.5); }
 #huntTop{
   position:absolute; top:calc(var(--sat) + 5vh); left:0; right:0; padding:0 26px;
   pointer-events:none; opacity:var(--ui);
@@ -262,7 +290,22 @@ body.diving  #toast{ top:9%; font-size:21px; }
   opacity:0; transform:translateY(24px); transition:opacity .5s ease, transform .5s ease;
   pointer-events:none; filter:drop-shadow(0 10px 30px rgba(0,0,0,.6));
 }
-#quizWho.on{ opacity:.95; transform:translateY(0); }
+#quizWho.on{
+  opacity:.95;
+  animation:standing 3.8s ease-in-out infinite;
+}
+/* nobody stands still for four questions */
+@keyframes standing{
+  0%,100%{ transform:translateY(0)     scale(1,1) }
+  50%    { transform:translateY(-2px)  scale(.995,1.008) }
+}
+/* the ground he is standing on */
+#quizWho::after{
+  content:""; position:absolute; left:50%; bottom:2%; width:78%; height:5%;
+  transform:translateX(-50%);
+  background:radial-gradient(ellipse at center, rgba(6,2,14,.62), rgba(6,2,14,0) 70%);
+  pointer-events:none;
+}
 #quizBox{ width:min(400px,94vw); z-index:2; }
 #quizTitle{ font-size:clamp(15px,4.4vw,19px); font-family:'Nunito',sans-serif; font-style:normal;
             font-weight:800; letter-spacing:1.6px; color:var(--faint); margin:0 0 16px; }
@@ -301,11 +344,28 @@ body.diving  #toast{ top:9%; font-size:21px; }
   filter:drop-shadow(0 12px 26px rgba(0,0,0,.55));
   transition:transform .3s ease, filter .3s ease;
 }
-.door.open .pic{ transform:translateY(-5px); filter:drop-shadow(0 16px 34px rgba(180,130,255,.5)); }
+.door .pic{ transform-origin:left center; }
+/* it swings, and the room behind it throws light out past her */
+.door.open .pic{
+  transform:perspective(520px) rotateY(-58deg) translateY(-4px);
+  filter:drop-shadow(0 16px 34px rgba(180,130,255,.5)) brightness(1.15);
+  transition:transform .5s cubic-bezier(.3,.8,.3,1), filter .5s ease;
+}
+.door.open{ position:relative; }
+.door.open::after{
+  content:""; position:absolute; left:50%; top:0; width:150%; height:74%;
+  transform:translateX(-50%);
+  background:radial-gradient(ellipse at 50% 100%, rgba(255,244,220,.55), rgba(255,224,180,0) 68%);
+  animation:spill .5s ease-out both; pointer-events:none;
+}
+@keyframes spill{ from{ opacity:0 } to{ opacity:1 } }
 .door .lb{ font-size:10.5px; font-weight:800; letter-spacing:.5px; line-height:1.2; color:var(--ink); }
 .door .tg{ font-size:9.5px; color:var(--faint); }
-.door.used{ opacity:.35; }
-.door.used .pic{ transform:none; filter:drop-shadow(0 6px 14px rgba(0,0,0,.5)) grayscale(.55); }
+/* a door she has already been through is shut and dark, not made of glass */
+.door.used{ opacity:.72; }
+.door.used .pic{ transform:none;
+  filter:drop-shadow(0 6px 14px rgba(0,0,0,.55)) grayscale(.7) brightness(.42); }
+.door.used .lb, .door.used .tg{ opacity:.55; }
 
 /* --------------------------------------- whatever is behind one of them */
 #s-room{ justify-content:flex-end; padding:0 0 calc(var(--sab) + 5vh); background:#07040e; }
@@ -315,6 +375,8 @@ body.diving  #toast{ top:9%; font-size:21px; }
   opacity:0; transition:opacity 1.1s ease, transform 7s linear;
 }
 #roomBg.on{ opacity:1; transform:translate(-50%,-50%) scale(1.14); }
+/* when she is in the shot the backdrop goes soft behind her */
+#s-room.quiet #roomBg{ filter:blur(1.6px) brightness(.92); }
 #roomVeil{
   position:absolute; inset:0; pointer-events:none;
   background:linear-gradient(180deg, rgba(7,4,14,.72) 0%, rgba(7,4,14,.06) 34%,
@@ -345,8 +407,21 @@ body.diving  #toast{ top:9%; font-size:21px; }
   background-position:center bottom; background-size:contain; cursor:pointer;
   filter:drop-shadow(0 8px 18px rgba(0,0,0,.6));
 }
+.shake{ animation:waddle 1.15s ease-in-out infinite, shakeIn .32s cubic-bezier(.2,1.6,.4,1) 1 both; }
+@keyframes shakeIn{
+  0%  { transform:translate(-50%,-50%) scale(.2) }
+  100%{ transform:translate(-50%,-50%) scale(1) }
+}
+@keyframes waddle{
+  0%,100%{ transform:translate(-50%,-50%) rotate(-5deg) translateY(0) }
+  50%    { transform:translate(-50%,-50%) rotate(5deg)  translateY(-5px) }
+}
 .shake.pop{ animation:popOff .34s ease-out forwards; pointer-events:none; }
-@keyframes popOff{ to{ transform:translate(-50%,-50%) scale(1.7) rotate(18deg); opacity:0 } }
+@keyframes popOff{
+  0%  { transform:translate(-50%,-50%) scale(1) }
+  35% { transform:translate(-50%,-50%) scale(1.3) }
+  100%{ transform:translate(-50%,-50%) scale(1.75) rotate(18deg); opacity:0 }
+}
 
 /* =====================================================================
    ACT 11 — twenty-three candles, in the dark

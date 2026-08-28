@@ -12,7 +12,7 @@
    ========================================================================= */
 import { CONFIG } from './config.js';
 import { ART } from './art.js';
-import { V, ctx, runner, firass, parts, burst, float, drawWorld, drawNear,
+import { V, ctx, runner, firass, parts, burst, float, dust, drawWorld, drawNear,
          drawRunner, drawFirass, POSE } from './world.js';
 import { $, toast, taunt, wait } from './fx.js';
 import { sfx, buzz } from './audio.js';
@@ -81,7 +81,7 @@ function spawnAhead(){
   for (let i = 0; i < n; i++){
     const u = (i - (n - 1) / 2) / Math.max(1, n);
     run.pickups.push({ x: x + u * 108 * V.SC,
-                       y: V.groundY - (196 + Math.cos(u * 2.6) * 26) * V.SC,
+                       y: V.groundY - (168 + Math.cos(u * 2.6) * 22) * V.SC,
                        ph: Math.random() * 6.28, rare });
   }
   run.nextSpawn = x + (450 + Math.random() * 330) * V.SC * (1.22 - prog * 0.34);
@@ -106,7 +106,8 @@ export function updateRun(dt){
       runner.y = V.groundY; runner.vy = 0; runner.ground = true; runner.held = false;
       run.land = 0.20;
       sfx.land();
-      burst(runner.x, V.groundY, '150,120,200', 5, 0.5);
+      V.shake = Math.max(V.shake, 3.5);        // it landed on something solid
+      dust(runner.x, V.groundY, 10, 1);
     }
   }
   runner.ft += dt * (runner.ground ? V.speed / (52 * V.SC) : 0);

@@ -20,8 +20,12 @@ export const V = {
   inRoom:false,      /* the building behind swaps for the last scene */
   glow:0,            /* how far into the night we are */
   shake:0,
+  camY:0,          /* the camera rides her stride, and kicks on a landing */
   flash:0,
-  fireworks:false
+  fireworks:false,
+  key:null,        /* which key light the cast is standing in */
+  grain:0.030,     /* how much film is on the picture */
+  bloom:0.60
 };
 
 const cv  = document.getElementById('c');
@@ -103,7 +107,12 @@ export function burst(x, y, col, n, big){
 export function float(x, y, txt, big){ floats.push({ x, y, life:0.9, txt, big }); }
 
 export function stepParticles(dt){
-  for (const p of parts){ p.x += p.vx*dt; p.y += p.vy*dt; p.vy += 230*dt; p.life -= dt*1.2; }
+  for (const p of parts){
+    p.x += p.vx*dt; p.y += p.vy*dt;
+    p.vy += (p.grav == null ? 230 : p.grav) * dt;
+    if (p.grav != null){ p.vx *= 0.94; p.vy *= 0.94; }   /* dust hangs, then settles */
+    p.life -= dt*1.2;
+  }
   parts = parts.filter(p => p.life > 0);
   for (const f of floats){ f.y -= 44*dt; f.life -= dt*1.25; }
   floats = floats.filter(f => f.life > 0);
@@ -156,6 +165,27 @@ function drawSky(){
   }
   ctx.globalAlpha = 1;
 }
+/* the thing she is named after, sitting where it has been all along */
+function drawMoon(){
+  const mx = V.W * 0.78, my = V.horizonY * 0.30, mr = 26 * V.SC;
+  const halo = ctx.createRadialGradient(mx, my, mr * 0.6, mx, my, mr * 7);
+  halo.addColorStop(0, 'rgba(226,214,255,.16)');
+  halo.addColorStop(1, 'rgba(226,214,255,0)');
+  ctx.fillStyle = halo;
+  ctx.beginPath(); ctx.arc(mx, my, mr * 7, 0, 6.2832); ctx.fill();
+  /* the crescent is cut on a transparent surface of its own: the world
+     canvas has no alpha channel, so cutting into it paints black. */
+  const pad = 3, d = Math.ceil(mr * 2) + pad * 2;
+  const m = surface(1, d, d);
+  m.fillStyle = 'rgba(244,238,255,.94)';
+  m.beginPath(); m.arc(pad + mr + 4, pad + mr + 4, mr, 0, 6.2832); m.fill();
+  m.globalCompositeOperation = 'destination-out';
+  m.beginPath();
+  m.arc(pad + mr + 4 + mr * 0.52, pad + mr + 4 - mr * 0.30, mr * 0.94, 0, 6.2832);
+  m.fill();
+  ctx.drawImage(rmCv, 0, 0, d + 8, d + 8, mx - mr - pad - 4, my - mr - pad - 4, d + 8, d + 8);
+}
+
 function drawHills(){
   const off = (V.scroll * 0.06) % (26 * 150);
   ctx.fillStyle = 'rgba(38,20,66,1)';
@@ -192,12 +222,29 @@ function softTop(im, frac){
   c.width = im.naturalWidth; c.height = im.naturalHeight;
   const x = c.getContext('2d');
   x.drawImage(im, 0, 0);
-  const g = x.createLinearGradient(0, 0, 0, c.height * frac);
+  x.globalCompositeOperation = 'destination-out';
+
+  /* the pines run off the top of the asset */
+  let g = x.createLinearGradient(0, 0, 0, c.height * frac);
   g.addColorStop(0, 'rgba(0,0,0,1)');
   g.addColorStop(1, 'rgba(0,0,0,0)');
-  x.globalCompositeOperation = 'destination-out';
   x.fillStyle = g;
   x.fillRect(0, 0, c.width, c.height * frac);
+
+  /* and the picture itself is cut at both sides, so a repeat shows two hard
+     vertical lines down the valley unless the edges are dissolved too */
+  const side = c.width * 0.16;
+  g = x.createLinearGradient(0, 0, side, 0);
+  g.addColorStop(0, 'rgba(0,0,0,1)');
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  x.fillStyle = g;
+  x.fillRect(0, 0, side, c.height);
+  g = x.createLinearGradient(c.width, 0, c.width - side, 0);
+  g.addColorStop(0, 'rgba(0,0,0,1)');
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  x.fillStyle = g;
+  x.fillRect(c.width - side, 0, side, c.height);
+
   softened.set(im, c);
   return c;
 }
@@ -215,7 +262,11 @@ function paintChalet(baseY){
   const w = h * (im.naturalWidth / im.naturalHeight);
   const off = (V.scroll * 0.17) % w;
   const pic = softTop(im, 0.14);
-  for (let i = -1; i <= 2; i++) ctx.drawImage(pic, i * w - off, baseY - h, w, h);
+  /* overlapped by a fifth of a tile, so the dissolved edges cross-fade into
+     each other instead of leaving a gap where the picture used to end */
+  const step = w * 0.80;
+  const o2 = (V.scroll * 0.17) % step;
+  for (let i = -1; i <= 3; i++) ctx.drawImage(pic, i * step - o2, baseY - h, w, h);
 }
 function drawChalet(){
   if (V.inRoom && ART.room){ paintRoom(); return; }
@@ -268,18 +319,26 @@ function drawBunting(){
    and measures from the same world line, so the joints converge; alternate
    tiles are mirrored AND take a different slice, otherwise the water shows
    an obvious butterfly. */
-function tiledBands(im, yTop, yBot, bands, sc0, sc1, speed, curve){
+function tiledBands(im, yTop, yBot, bands, sc0, sc1, speed, curve, slice){
   if (!im) return false;
   const tw = im.naturalWidth, th = im.naturalHeight;
   ctx.save();
   ctx.beginPath(); ctx.rect(-10, yTop, V.W + 20, yBot - yTop + 2); ctx.clip();
   const vx = V.W * 0.5;
+  /* Every boundary is worked out once and rounded, so band i ends exactly
+     where band i+1 begins. Drawing each band a pixel tall than it needs
+     (the old `+1`) double-painted the joint, and at less than full alpha
+     that reads as a dark stripe across the water every few rows. */
+  const ys = new Array(bands + 1);
+  for (let i = 0; i <= bands; i++){
+    const v = i / bands;
+    ys[i] = Math.round(yTop + (yBot - yTop) * (v * v * curve + v * (1 - curve)));
+  }
   for (let i = 0; i < bands; i++){
     const v0 = i / bands, v1 = (i + 1) / bands;
-    const e0 = v0 * v0 * curve + v0 * (1 - curve);
-    const e1 = v1 * v1 * curve + v1 * (1 - curve);
-    const y0 = yTop + (yBot - yTop) * e0;
-    const y1 = yTop + (yBot - yTop) * e1;
+    const y0 = ys[i];
+    const y1 = ys[i + 1];
+    if (y1 <= y0) continue;
     const sy = v0 * th, sh = Math.max(1, (v1 - v0) * th);
     const sc = sc0 + (sc1 - sc0) * v0;
     const dw = tw * sc;
@@ -290,10 +349,10 @@ function tiledBands(im, yTop, yBot, bands, sc0, sc1, speed, curve){
       const x = vx + n * dw - world;
       if (x > V.W + dw || x + dw < -dw) continue;
       const flip = ((n % 2) + 2) % 2 === 1;
-      const sy2 = flip ? (sy + th * 0.37) % (th - sh) : sy;
+      const sy2 = flip ? (sy + th * (slice == null ? 0.37 : slice)) % (th - sh) : sy;
       ctx.save();
       if (flip){ ctx.translate(2 * x + dw, 0); ctx.scale(-1, 1); }
-      ctx.drawImage(im, 0, sy2, tw, sh, x, y0, dw, y1 - y0 + 1);
+      ctx.drawImage(im, 0, sy2, tw, sh, x, y0, dw, y1 - y0);
       ctx.restore();
     }
   }
@@ -331,14 +390,17 @@ function drawPool(){
   }
 
   ctx.save();
-  ctx.globalAlpha = 0.62;
-  const realWater = tiledBands(ART.water, V.poolFar, V.deckFar, 12, 0.07, 0.30, 0.62, 0.76);
+  ctx.globalAlpha = 0.52;
+  /* a much wider scale range across the band — at 0.07..0.30 the ripples were
+     nearly the same size front and back, which is what made the pool read as
+     a wall of purple instead of a surface going away from you */
+  const realWater = tiledBands(ART.water, V.poolFar, V.deckFar, 26, 0.05, 0.62, 0.62, 0.88, 0.11);
   ctx.restore();
   if (realWater){
     const tint = ctx.createLinearGradient(0, V.poolFar, 0, V.deckFar);
-    tint.addColorStop(0,   'rgba(30,14,74,.42)');
-    tint.addColorStop(0.5, 'rgba(48,24,112,.30)');
-    tint.addColorStop(1,   'rgba(74,40,150,.22)');
+    tint.addColorStop(0,   'rgba(20,9,54,.60)');   // far water is darker
+    tint.addColorStop(0.5, 'rgba(38,18,92,.38)');
+    tint.addColorStop(1,   'rgba(66,34,138,.16)');
     ctx.fillStyle = tint;
     ctx.fillRect(-10, V.poolFar, V.W + 20, V.deckFar - V.poolFar);
   }
@@ -391,11 +453,13 @@ function drawDeck(){
   ctx.fillRect(-10, V.deckFar, V.W + 20, V.H - V.deckFar + 10);
 
   if (tiledBands(ART.floor, V.deckFar, V.H + 2, 18, 0.10, 0.58, 1.0, 0.84)){
+    /* it still has to fall away into the dark so her silhouette reads, but
+       .52->.90 was painting the stone out completely */
     const sh = ctx.createLinearGradient(0, V.deckFar, 0, V.H);
-    sh.addColorStop(0,    'rgba(44,26,64,.52)');
-    sh.addColorStop(0.30, 'rgba(30,17,46,.72)');
-    sh.addColorStop(0.72, 'rgba(18,9,30,.80)');
-    sh.addColorStop(1,    'rgba(10,5,18,.90)');
+    sh.addColorStop(0,    'rgba(58,34,96,.44)');
+    sh.addColorStop(0.34, 'rgba(38,21,62,.56)');
+    sh.addColorStop(0.74, 'rgba(20,10,34,.74)');
+    sh.addColorStop(1,    'rgba(9,4,16,.90)');
     ctx.fillStyle = sh;
     ctx.fillRect(-10, V.deckFar, V.W + 20, V.H - V.deckFar + 10);
   }
@@ -410,11 +474,13 @@ function drawDeck(){
 
 const PROPS = [
   { k:'floaties', rate:0.70, per:1600, w:96,  y:() => V.poolFar + (V.deckFar - V.poolFar) * 0.86, seed:11 },
-  { k:'lounger',  rate:0.94, per:1900, w:132, y:() => V.deckFar + (V.groundY - V.deckFar) * 0.80, seed:23 },
-  { k:'cabana',   rate:0.94, per:3100, w:212, y:() => V.deckFar + (V.groundY - V.deckFar) * 0.72, seed:5  },
-  { k:'firebowl', rate:0.94, per:2600, w:76,  y:() => V.deckFar + (V.groundY - V.deckFar) * 0.90, seed:61 },
-  { k:'champagne',rate:0.94, per:2900, w:70,  y:() => V.deckFar + (V.groundY - V.deckFar) * 0.86, seed:88 },
-  { k:'gifts',    rate:0.94, per:2400, w:62,  y:() => V.deckFar + (V.groundY - V.deckFar) * 0.88, seed:71 }
+  /* all of these live BEHIND the line she runs on. At 0.80-0.90 they were
+     level with her feet and she walked straight through the furniture. */
+  { k:'lounger',  rate:0.90, per:2100, w:118, y:() => V.deckFar + (V.groundY - V.deckFar) * 0.54, seed:23 },
+  { k:'cabana',   rate:0.88, per:3400, w:196, y:() => V.deckFar + (V.groundY - V.deckFar) * 0.44, seed:5  },
+  { k:'firebowl', rate:0.90, per:2600, w:68,  y:() => V.deckFar + (V.groundY - V.deckFar) * 0.60, seed:61 },
+  { k:'champagne',rate:0.90, per:2900, w:62,  y:() => V.deckFar + (V.groundY - V.deckFar) * 0.56, seed:88 },
+  { k:'gifts',    rate:0.90, per:2400, w:56,  y:() => V.deckFar + (V.groundY - V.deckFar) * 0.58, seed:71 }
 ];
 function drawProps(){
   for (const p of PROPS){
@@ -430,10 +496,36 @@ function drawProps(){
       ctx.drawImage(im, x - w / 2, base - h, w, h);
     }
   }
+  /* the air between her and the furniture. Without this everything back
+     there is as crisp as she is and the depth collapses. */
+  const haze = ctx.createLinearGradient(0, V.deckFar, 0, V.groundY);
+  haze.addColorStop(0,   'rgba(78,44,126,.30)');
+  haze.addColorStop(0.7, 'rgba(52,28,92,.10)');
+  haze.addColorStop(1,   'rgba(40,20,72,0)');
+  ctx.fillStyle = haze;
+  ctx.fillRect(-10, V.deckFar, V.W + 20, V.groundY - V.deckFar);
 }
 function drawForeground(){
-  const per = 300 * V.SC;
+  const per = 620 * V.SC;
   const off = ((-V.scroll * 1.55) % per + per) % per;
+  const im = ART.planter;
+
+  if (im){
+    /* the real potted palm, close enough to the lens that its pot runs off
+       the bottom of the screen and its fronds cut the corner of the frame */
+    const h = V.H * 0.52;
+    const w = h * (im.naturalWidth / im.naturalHeight);
+    for (let i = -1; i < Math.ceil(V.W / per) + 1; i++){
+      const x = i * per + off;
+      if (x < -w || x > V.W + w) continue;
+      /* only the top fronds come into frame, from below. Most of the plant is
+         under the bottom edge - that is what says "a foot from the lens", and
+         it keeps the thing from ever standing in front of her. */
+      ctx.drawImage(im, x - w / 2, V.H - h * 0.30, w, h);
+    }
+    return;
+  }
+
   for (let i = -1; i < Math.ceil(V.W / per) + 1; i++){
     const x = i * per + off;
     const w = 128 * V.SC, y = V.deckNear - 8 * V.SC;
@@ -448,9 +540,109 @@ function drawForeground(){
     ctx.moveTo(x, y); ctx.lineTo(x + w, y);
     ctx.lineTo(x + w - 17 * V.SC, V.H + 30); ctx.lineTo(x + 17 * V.SC, V.H + 30);
     ctx.closePath(); ctx.fill();
-    ctx.fillStyle = 'rgba(120,88,180,.16)';
-    ctx.fillRect(x, y, w, 3 * V.SC);
   }
+}
+
+/* ==================================================  lighting the cast ===
+   The two of them are flat cartoon cut-outs and everything behind them is a
+   photograph. Dropped in raw they read as stickers, so nothing is blitted
+   straight to the screen any more: a character goes onto a small offscreen
+   first, is graded with the same key light the scene has, and is given a
+   bright rim down the side the bulbs are on. Then it is drawn.
+
+   Two reusable canvases, no allocation per frame, and no ctx.filter — that
+   is still a frame-killer in Safari at this size.
+   ===================================================================== */
+let stCv = null, stCx = null, rmCv = null, rmCx = null;
+function surface(which, w, h){
+  const W2 = Math.ceil(w) + 8, H2 = Math.ceil(h) + 8;
+  let cvs = which === 0 ? stCv : rmCv;
+  if (!cvs){
+    cvs = document.createElement('canvas');
+    if (which === 0){ stCv = cvs; stCx = cvs.getContext('2d'); }
+    else { rmCv = cvs; rmCx = cvs.getContext('2d'); }
+  }
+  if (cvs.width < W2 || cvs.height < H2){
+    cvs.width  = Math.max(cvs.width,  W2);
+    cvs.height = Math.max(cvs.height, H2);
+  }
+  const c = which === 0 ? stCx : rmCx;
+  c.setTransform(1, 0, 0, 1, 0, 0);
+  c.globalCompositeOperation = 'source-over';
+  c.globalAlpha = 1;
+  c.clearRect(0, 0, cvs.width, cvs.height);
+  return c;
+}
+
+/* the poolside: warm bulbs above and behind her, violet bounce off the water */
+export const POOL_KEY = {
+  top:'rgba(255,216,152,.22)', mid:'rgba(0,0,0,0)', bot:'rgba(44,18,84,.40)',
+  rim:'rgba(226,196,255,.55)', rx:-3, ry:1
+};
+/* the last room: one small warm source, low and in front, and nothing else */
+export const CANDLE_KEY = {
+  top:'rgba(22,9,38,.38)', mid:'rgba(0,0,0,0)', bot:'rgba(255,182,96,.32)',
+  rim:'rgba(255,206,140,.50)', rx:0, ry:-3
+};
+
+/** One sprite, or one cell of a strip, lit by the scene it is standing in. */
+function litDraw(im, sx, sy, sw, sh, dx, dy, dw, dh, key){
+  const k = key || POOL_KEY;
+  const c = surface(0, dw, dh);
+  c.drawImage(im, sx, sy, sw, sh, 4, 4, dw, dh);
+
+  /* grade — only the pixels the sprite actually owns */
+  c.globalCompositeOperation = 'source-atop';
+  const g = c.createLinearGradient(0, 4, 0, 4 + dh);
+  g.addColorStop(0, k.top);
+  g.addColorStop(0.55, k.mid);
+  g.addColorStop(1, k.bot);
+  c.fillStyle = g;
+  c.fillRect(0, 0, dw + 8, dh + 8);
+
+  /* rim — the silhouette, minus the silhouette shifted away from the light,
+     leaves exactly the crescent that light would catch */
+  const r = surface(1, dw, dh);
+  r.drawImage(im, sx, sy, sw, sh, 4, 4, dw, dh);
+  r.globalCompositeOperation = 'destination-out';
+  r.drawImage(im, sx, sy, sw, sh, 4 + k.rx, 4 + k.ry, dw, dh);
+  r.globalCompositeOperation = 'source-atop';
+  r.fillStyle = k.rim;
+  r.fillRect(0, 0, dw + 8, dh + 8);
+
+  c.globalCompositeOperation = 'lighter';
+  c.drawImage(rmCv, 0, 0);
+
+  ctx.drawImage(stCv, 0, 0, dw + 8, dh + 8, dx - 4, dy - 4, dw + 8, dh + 8);
+}
+
+/** A strip cell standing on (x,y), sized by height — the lit cellFrame. */
+function litCell(im, cells, i, x, y, h, key){
+  if (!im) return false;
+  const cw = im.naturalWidth / cells, ch = im.naturalHeight;
+  const w = h * (cw / ch);
+  litDraw(im, i * cw, 0, cw, ch, x - w / 2, y - h, w, h, key);
+  return true;
+}
+
+/* a soft contact shadow, squashed the way a low light makes one */
+function contact(x, y, w, a){
+  if (a <= 0.002) return;
+  const g = ctx.createRadialGradient(x, y, 0, x, y, w);
+  g.addColorStop(0,   'rgba(8,3,18,' + a + ')');
+  g.addColorStop(0.6, 'rgba(8,3,18,' + (a * 0.45) + ')');
+  g.addColorStop(1,   'rgba(8,3,18,0)');
+  ctx.save();
+  ctx.translate(x, y); ctx.scale(1, 0.22); ctx.translate(-x, -y);
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(x, y, w, 0, 6.2832); ctx.fill();
+  ctx.restore();
+}
+
+/* nobody stands perfectly still. Everyone gets a breath. */
+function breath(seed, amt){
+  const b = Math.sin(V.t * 1.6 + seed) * (amt == null ? 0.011 : amt);
+  return { sx: 1 - b * 0.55, sy: 1 + b };
 }
 
 /* -------------------------------------------------------- the two of them */
@@ -461,19 +653,29 @@ export function drawFirass(){
   const hx = firass.x || V.W * 0.66;
   const y = V.groundY - (1 - firass.in) * V.H * 0.45;
   const h = 205 * V.SC;
+
   ctx.save();
   ctx.globalAlpha = Math.min(1, firass.in * 1.3);
+
   const g = ctx.createRadialGradient(hx, y - 80 * V.SC, 4, hx, y - 80 * V.SC, 120 * V.SC);
   g.addColorStop(0, 'rgba(201,164,255,.14)');
   g.addColorStop(1, 'rgba(201,164,255,0)');
   ctx.fillStyle = g;
   ctx.beginPath(); ctx.arc(hx, y - 80 * V.SC, 120 * V.SC, 0, 6.2832); ctx.fill();
-  ctx.fillStyle = 'rgba(10,4,22,.22)';
-  ctx.beginPath(); ctx.ellipse(hx, y + 3 * V.SC, 30 * V.SC, 6 * V.SC, 0, 0, 6.2832); ctx.fill();
-  if (firass.pose >= 0) cellFrame(ctx, ART.himposes, 4, firass.pose, hx, y, h);
+  contact(hx, y + 2 * V.SC, 46 * V.SC, 0.30);
+
+  /* he breathes, and shifts his weight about once every four seconds */
+  const b = breath(1.7, 0.009);
+  const sway = Math.sin(V.t * 0.45) * 0.9 * V.SC;
+  ctx.translate(hx + sway, y);
+  ctx.scale(b.sx, b.sy);
+  ctx.translate(-hx, -y);
+
+  if (firass.pose >= 0) litCell(ART.himposes, 4, firass.pose, hx, y, h, V.key);
   else {
-    const w = h * (ART.himstand.naturalWidth / ART.himstand.naturalHeight);
-    ctx.drawImage(ART.himstand, hx - w / 2, y - h, w, h);
+    const w = h * (sheet.naturalWidth / sheet.naturalHeight);
+    litDraw(sheet, 0, 0, sheet.naturalWidth, sheet.naturalHeight,
+            hx - w / 2, y - h, w, h, V.key);
   }
   ctx.restore();
 }
@@ -483,23 +685,49 @@ export function drawRunner(land){
   const air = V.groundY - runner.y;
   const y = runner.y - (1 - runner.in) * V.H * 0.55;
   const h = 152 * V.SC;
+  const moving = V.speed > 60 * V.SC;
 
-  const k = Math.max(0, 1 - air / (170 * V.SC));
-  ctx.fillStyle = 'rgba(10,4,22,' + (0.22 * k) + ')';
-  ctx.beginPath();
-  ctx.ellipse(runner.x, V.groundY + 3 * V.SC, 26 * V.SC * (0.55 + k * 0.45), 5.5 * V.SC * k, 0, 0, 6.2832);
-  ctx.fill();
+  /* the shadow shrinks and tightens as she leaves the stone */
+  const k = Math.max(0, 1 - air / (190 * V.SC));
+  contact(runner.x, V.groundY + 2 * V.SC, 40 * V.SC * (0.5 + k * 0.5), 0.30 * k);
 
   ctx.save();
   if (runner.hurt > 0 && Math.floor(runner.hurt * 18) % 2) ctx.globalAlpha = 0.35;
+
+  /* WEIGHT. She stretches on the way up, squashes on the way in, and rides
+     a stride bob along the ground. Without this she slides like a decal. */
+  let sx = 1, sy = 1, rot = 0, dy = 0;
+  if (!runner.ground){
+    const rising = runner.vy < 0;
+    const f = Math.min(1, Math.abs(runner.vy) / (700 * V.SC));
+    sy = 1 + (rising ? 0.10 : 0.05) * f;
+    sx = 1 - (rising ? 0.07 : 0.035) * f;
+    rot = rising ? -0.05 : 0.035;
+  } else if (land > 0){
+    const f = land / 0.20;                      // 1 at the moment of impact
+    sy = 1 - 0.16 * f;
+    sx = 1 + 0.13 * f;
+  } else if (moving && runner.pose < 0){
+    dy  = -Math.abs(Math.sin(runner.ft * Math.PI)) * 3.2 * V.SC;
+    rot = -0.045 * Math.min(1, V.speed / (620 * V.SC));    // leaning into it
+  } else {
+    const b = breath(0.4);
+    sx = b.sx; sy = b.sy;
+  }
+
+  ctx.translate(runner.x, y + dy);
+  ctx.rotate(rot);
+  ctx.scale(sx, sy);
+  ctx.translate(-runner.x, -y);
+
   let drew = false;
   if (runner.pose >= 0)
-    drew = cellFrame(ctx, ART.poses, POSE_CELLS, runner.pose, runner.x, y, h * POSE_SCALE);
+    drew = litCell(ART.poses, POSE_CELLS, runner.pose, runner.x, y, h * POSE_SCALE, V.key);
   else if (land > 0 && runner.ground)
-    drew = cellFrame(ctx, ART.poses, POSE_CELLS, POSE.LAND, runner.x, y, h * POSE_SCALE);
+    drew = litCell(ART.poses, POSE_CELLS, POSE.LAND, runner.x, y, h * POSE_SCALE, V.key);
   if (!drew)
-    drew = cellFrame(ctx, ART.run, RUN_CELLS,
-                     !runner.ground ? 4 : (Math.floor(runner.ft) % 4), runner.x, y, h);
+    drew = litCell(ART.run, RUN_CELLS,
+                   !runner.ground ? 4 : (Math.floor(runner.ft) % 4), runner.x, y, h, V.key);
   if (!drew){
     ctx.fillStyle = '#1d1030';
     ctx.beginPath(); ctx.arc(runner.x, y - h * 0.84, h * 0.14, 0, 6.2832); ctx.fill();
@@ -508,9 +736,22 @@ export function drawRunner(land){
   ctx.restore();
 }
 
+/** A low wide puff, the way a foot actually kicks dust — not a firework. */
+export function dust(x, y, n, power){
+  for (let i = 0; i < (n || 9); i++){
+    const a = Math.PI + (Math.random() - 0.5) * 2.4;
+    const s = (30 + Math.random() * 90) * (power || 1);
+    parts.push({ x: x + (Math.random() - 0.5) * 18 * V.SC, y,
+                 vx: Math.cos(a) * s * 1.5, vy: -Math.abs(Math.sin(a)) * s * 0.30,
+                 life: 0.34 + Math.random() * 0.34, grav: 40,
+                 r: (2.2 + Math.random() * 4.5) * V.SC, c:'176,150,206' });
+  }
+}
+
 /* --------------------------------------------------------- compositing */
 export function drawWorld(){
   drawSky();
+  drawMoon();
   drawMountains();
   drawChalet();
   drawLights();
@@ -565,6 +806,87 @@ export function drain(){
   if (V.flash > 0.01){
     ctx.fillStyle = 'rgba(255,255,255,' + (0.5 * V.flash) + ')';
     ctx.fillRect(0, 0, V.W, V.H);
+  }
+}
+
+
+/* =====================================================  the picture pass ==
+   Three things, in this order, over the finished frame: a cheap bloom that
+   only the bright parts survive, a vignette, and a film grain. This is the
+   whole difference between "a canvas with sprites on it" and something that
+   looks photographed.
+
+   The bloom is done by downscaling the frame to a quarter, multiplying it by
+   itself (which squares every channel and so throws away everything that is
+   not already bright), then adding it back scaled up — the upscale IS the
+   blur. No ctx.filter anywhere: Safari cannot do one at this size and hold
+   sixty frames.
+   ===================================================================== */
+let blCv = null, blCx = null, grCv = null, grKey = '';
+
+function grainTile(){
+  if (grCv) return grCv;
+  grCv = document.createElement('canvas');
+  grCv.width = grCv.height = 128;
+  const g = grCv.getContext('2d');
+  const d = g.createImageData(128, 128);
+  for (let i = 0; i < d.data.length; i += 4){
+    const v = 118 + (Math.random() * 76 - 38);
+    d.data[i] = d.data[i+1] = d.data[i+2] = v;
+    d.data[i+3] = 255;
+  }
+  g.putImageData(d, 0, 0);
+  return grCv;
+}
+
+let vigG = null, vigKey = '';
+export function postFX(){
+  const bw = Math.max(2, Math.round(V.W / 4)), bh = Math.max(2, Math.round(V.H / 4));
+  if (!blCv){ blCv = document.createElement('canvas'); blCx = blCv.getContext('2d'); }
+  if (blCv.width !== bw || blCv.height !== bh){ blCv.width = bw; blCv.height = bh; }
+
+  if (V.bloom > 0.01){
+    blCx.setTransform(1, 0, 0, 1, 0, 0);
+    blCx.globalCompositeOperation = 'source-over';
+    blCx.globalAlpha = 1;
+    blCx.clearRect(0, 0, bw, bh);
+    blCx.drawImage(cv, 0, 0, bw, bh);
+    blCx.globalCompositeOperation = 'multiply';   // square it: only highlights live
+    blCx.drawImage(blCv, 0, 0);
+    blCx.drawImage(blCv, 0, 0);                   // twice — the pool is bright
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = V.bloom;
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(blCv, 0, 0, bw, bh, 0, 0, V.W, V.H);
+    ctx.restore();
+  }
+
+  const vk = V.W + 'x' + V.H;
+  if (vk !== vigKey){
+    vigKey = vk;
+    const r = Math.max(V.W, V.H) * 0.78;
+    vigG = ctx.createRadialGradient(V.W * 0.5, V.H * 0.46, r * 0.28,
+                                    V.W * 0.5, V.H * 0.46, r);
+    vigG.addColorStop(0,   'rgba(0,0,0,0)');
+    vigG.addColorStop(0.62,'rgba(0,0,0,.16)');
+    vigG.addColorStop(1,   'rgba(0,0,0,.58)');
+  }
+  ctx.fillStyle = vigG;
+  ctx.fillRect(0, 0, V.W, V.H);
+
+  if (V.grain > 0.002){
+    const t = grainTile();
+    ctx.save();
+    ctx.globalCompositeOperation = 'overlay';
+    ctx.globalAlpha = V.grain;
+    /* the tile jumps every frame, or the grain reads as a texture, not film */
+    const ox = -Math.floor(Math.random() * 128), oy = -Math.floor(Math.random() * 128);
+    const pat = ctx.createPattern(t, 'repeat');
+    ctx.translate(ox, oy);
+    ctx.fillStyle = pat;
+    ctx.fillRect(0, 0, V.W + 128, V.H + 128);
+    ctx.restore();
   }
 }
 

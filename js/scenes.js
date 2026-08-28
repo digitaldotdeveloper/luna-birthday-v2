@@ -563,13 +563,29 @@ export function tickCake(dt){
     if (f <= 0.001) continue;
     c.fillStyle = 'rgba(240,230,255,' + (0.8 * cd.born * (1 - cake.out)) + ')';
     c.fillRect(cd.x - 1.5, cd.y - 9, 3, 11);
-    const g = c.createRadialGradient(cd.x, cd.y - 12, 0, cd.x, cd.y - 12, r * 2.3);
+
+    /* the halo it throws */
+    const g = c.createRadialGradient(cd.x, cd.y - 13, 0, cd.x, cd.y - 13, r * 2.5);
     g.addColorStop(0, 'rgba(255,226,160,' + (0.85 * f) + ')');
     g.addColorStop(1, 'rgba(255,180,90,0)');
     c.fillStyle = g;
-    c.beginPath(); c.arc(cd.x, cd.y - 12, r * 2.3, 0, 6.2832); c.fill();
-    c.fillStyle = 'rgba(255,248,220,' + f + ')';
-    c.beginPath(); c.ellipse(cd.x, cd.y - 12, 2.1, 4.6 * (0.7 + 0.3 * f), 0, 0, 6.2832); c.fill();
+    c.beginPath(); c.arc(cd.x, cd.y - 13, r * 2.5, 0, 6.2832); c.fill();
+
+    /* the flame itself: a teardrop that leans on a slow sine and flickers on
+       a fast one, so no two candles are ever doing the same thing */
+    const lean = Math.sin(cake.t * 2.1 + cd.ph) * 1.5;
+    const hgt  = (9.5 + Math.sin(cake.t * 13 + cd.ph * 2.7) * 1.8) * (0.75 + 0.25 * f);
+    const base = cd.y - 10;
+    c.fillStyle = 'rgba(255,248,222,' + f + ')';
+    c.beginPath();
+    c.moveTo(cd.x, base - hgt);
+    c.quadraticCurveTo(cd.x + 2.9 + lean, base - hgt * 0.34, cd.x + lean * 0.35, base);
+    c.quadraticCurveTo(cd.x - 2.9 + lean, base - hgt * 0.34, cd.x, base - hgt);
+    c.fill();
+    /* the cool root every real flame has */
+    c.fillStyle = 'rgba(150,190,255,' + (0.42 * f) + ')';
+    c.beginPath();
+    c.ellipse(cd.x + lean * 0.3, base - 1.6, 1.5, 2.4, 0, 0, 6.2832); c.fill();
   }
   if (cake.out > 0 && cake.out < 1) cake.out = Math.min(1, cake.out + dt * 0.9);
 }

@@ -10,7 +10,7 @@ import { CONFIG } from './config.js';
 import { load, warm, src } from './art.js';
 import { V, resize as worldResize, softResize, ctx, runner, firass, invalidate,
          drawWorld, drawNear, drawRunner, drawFirass, stepParticles,
-         stepSparks, drain, POSE } from './world.js';
+         stepSparks, drain, postFX, POOL_KEY, CANDLE_KEY, POSE } from './world.js';
 import { $, toast, wait, term, fxResize, fxFrame, ui } from './fx.js';
 import { tone, sfx, music, muted } from './audio.js';
 import { runAct1, runBoot } from './act1.js';
@@ -23,6 +23,7 @@ import { askColour, photoRecovery, memoryHunt, quiz, doors,
 
 /* act1 | world | run | dive — what the canvas and the thumb are doing */
 let mode = 'act1';
+V.key = POOL_KEY;
 
 /* ------------------------------------------------------------- layout */
 function resizeAll(){
@@ -93,6 +94,11 @@ function frame(now){
   /* -------- draw -------- */
   if (mode !== 'act1'){
     ctx.save();
+    /* the camera rides her stride instead of hanging in space */
+    V.camY += (((mode === 'run' && runner.ground && V.speed > 60 * V.SC)
+                 ? Math.sin(runner.ft * Math.PI * 2) * 2.4 * V.SC : 0) - V.camY)
+              * Math.min(1, dt * 9);
+    ctx.translate(0, V.camY);
     if (V.shake > 0.4)
       ctx.translate((Math.random() - 0.5) * V.shake, (Math.random() - 0.5) * V.shake);
     if (mode === 'dive'){
@@ -107,6 +113,7 @@ function frame(now){
     }
     ctx.restore();
     if (mode !== 'dive') drain();
+    postFX();
   }
   fxFrame(dt);
   requestAnimationFrame(frame);
