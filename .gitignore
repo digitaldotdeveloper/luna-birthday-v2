@@ -1,0 +1,6 @@
+# your photo stays off the public site
+*.jpg
+*.jpeg
+*.heic
+!share.jpg
+!assets/memory-photo.jpg

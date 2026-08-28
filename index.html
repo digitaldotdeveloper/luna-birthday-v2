@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0b0416">
+<title>LUNA.EXE</title>
+
+<!-- the link preview is still the lame card. that is the whole joke. -->
+<meta property="og:title" content="Happy Birthday Luna!!!">
+<meta property="og:description" content="a birthday card. made with love. and clip art.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://digitaldotdeveloper.github.io/luna-birthday-v2/">
+<meta property="og:image" content="https://digitaldotdeveloper.github.io/luna-birthday-v2/share.jpg?v=2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://digitaldotdeveloper.github.io/luna-birthday-v2/share.jpg?v=2">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230b0416'/%3E%3Ccircle cx='16' cy='16' r='9' fill='%23c9a4ff'/%3E%3Ccircle cx='20' cy='13' r='8' fill='%230b0416'/%3E%3C/svg%3E">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" media="print" onload="this.media='all';this.onload=null"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@1,9..144,400;1,9..144,600&family=Nunito:wght@400;700;800&display=swap">
+<noscript><link rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@1,9..144,400;1,9..144,600&family=Nunito:wght@400;700;800&display=swap"></noscript>
+
+<link rel="stylesheet" href="css/act1.css">
+<link rel="stylesheet" href="css/game.css">
+</head>
+<body>
+
+<!-- the world, and a layer of effects over the top of it -->
+<canvas id="c"></canvas>
+<canvas id="fx"></canvas>
+
+<!-- =====================================================================
+     ACT 1 — 2005. None of this is a mistake. Do not clean it up.
+     ===================================================================== -->
+<div id="act1">
+  <div id="ieWin">
+    <div id="ieBar">
+      <span id="ieTitle">Happy Birthday Luna!!! - Microsoft Internet Explorer</span>
+      <span id="ieBtns"><i>_</i><i>□</i><i class="x">✕</i></span>
+    </div>
+    <div id="ieMenu"><span>File</span><span>Edit</span><span>View</span><span>Favorites</span><span>Tools</span><span>Help</span></div>
+    <div id="ieAddr"><b>Address</b><div id="ieUrl"></div><span id="ieGo">Go</span></div>
+
+    <div id="ieDoc">
+      <div id="ieLoad">
+        <div id="ieLoadTxt">loading birthday…</div>
+        <div id="ieLoadBar"><i></i></div>
+        <div id="ieLoadPct">0%</div>
+      </div>
+
+      <div id="ieBody">
+        <div class="marq"><span id="a1marq"></span></div>
+        <div class="wordart" id="a1title"></div>
+        <div class="subart" id="a1sub"></div>
+        <div class="glitterbar"></div>
+        <div id="clips"><i>🎈</i><i>🎂</i><i>🎉</i><i>🎁</i><i>🎈</i></div>
+        <div class="lame" id="a1body"></div>
+        <button id="bigbtn"></button>
+        <div id="stopped"><span id="a1end"></span><small id="a1endsub"></small></div>
+        <div class="glitterbar"></div>
+        <div class="tiny">
+          You are visitor <span class="counter" id="a1vis"></span><br>
+          <span id="a1foot"></span><br>
+          <span id="a1ie"></span>
+        </div>
+      </div>
+    </div>
+    <div id="ieStatus"><span id="ieStatusTxt">Done</span><span id="ieZone">🖳 My Computer</span></div>
+  </div>
+  <div id="dialogs"></div>
+</div>
+
+<!-- =====================================================================
+     The dark screen the machine talks from. Used three times: after the
+     card dies, for the boot, and for the secret ending.
+     ===================================================================== -->
+<div id="term">
+  <div id="termInner"></div>
+</div>
+
+<!-- =====================================================================
+     Everything after. Plain DOM over a canvas that never stops drawing.
+     ===================================================================== -->
+<div id="hud">
+  <div id="hudLeft"></div>
+  <div id="hudRight"></div>
+</div>
+
+<div id="toast"></div>
+<div id="taunt"></div>
+
+<!-- the colour gate -->
+<div class="scene" id="s-ask">
+  <h1 id="askTitle"></h1>
+  <p class="lead" id="askBody"></p>
+  <div id="swatches"></div>
+  <div class="hint" id="askReply">&nbsp;</div>
+</div>
+
+<!-- she ran out of frosting -->
+<div class="scene" id="s-lost">
+  <h1>the lame card won 😐</h1>
+  <p class="lead">It got milkshake everywhere.</p>
+  <button class="btn" id="retryBtn">let me try again</button>
+</div>
+
+<!-- the photo coming back off a corrupted card -->
+<div class="scene" id="s-photo">
+  <div id="recBox">
+    <div id="recHead">MEMORY FOUND</div>
+    <div id="recName"></div>
+    <div id="recBar"><i></i></div>
+    <div id="recPct">0%</div>
+    <div id="recFrame">
+      <img id="recImg" alt="" decoding="async">
+      <canvas id="recCv"></canvas>
+      <div id="recScan"></div>
+      <div id="recMiss">the photo goes here<br><small>(ask Firass)</small></div>
+    </div>
+    <div id="recCap"></div>
+  </div>
+</div>
+
+<!-- the room she has to look around -->
+<div class="scene" id="s-hunt">
+  <div id="huntStage">
+    <img id="huntBg" alt="" decoding="async">
+    <div id="huntSpots"></div>
+  </div>
+  <div id="huntTop">
+    <h2 id="huntTitle"></h2>
+    <p class="sub" id="huntSub"></p>
+  </div>
+  <div id="huntBar"><span id="huntCount">0 / 3</span></div>
+  <div class="note" id="huntNote">&nbsp;</div>
+</div>
+
+<!-- the quiz -->
+<div class="scene" id="s-quiz">
+  <div id="quizWho"></div>
+  <div id="quizBox">
+    <div id="quizDots"></div>
+    <h2 id="quizTitle"></h2>
+    <p id="quizQ"></p>
+    <div id="quizOpts"></div>
+  </div>
+  <div class="note" id="quizNote">&nbsp;</div>
+</div>
+
+<!-- four doors -->
+<div class="scene" id="s-doors">
+  <h2 id="doorsTitle"></h2>
+  <p class="sub" id="doorsSub"></p>
+  <div id="doorRow"></div>
+  <div class="note" id="doorNote">&nbsp;</div>
+</div>
+
+<!-- whatever is behind whichever one she picked -->
+<div class="scene" id="s-room">
+  <img id="roomBg" alt="" decoding="async">
+  <div id="roomVeil"></div>
+  <div id="roomPlay"></div>
+  <div id="roomText">
+    <h2 id="roomTitle"></h2>
+    <p class="sub" id="roomBody"></p>
+  </div>
+  <div class="note" id="roomNote">&nbsp;</div>
+  <button class="btn ghost" id="roomBack">back</button>
+</div>
+
+<!-- twenty-three -->
+<div class="scene" id="s-cake">
+  <img id="cakeBg" alt="" decoding="async">
+  <canvas id="cakeCv"></canvas>
+  <div id="cakeTop">
+    <h2 id="cakeTitle"></h2>
+    <p class="sub" id="cakeSub"></p>
+  </div>
+  <div id="cakeCount">0 / 23</div>
+  <div id="cakeLine"></div>
+  <button class="btn" id="wishBtn">make a wish</button>
+  <div class="hint breathe" id="wishHint"></div>
+</div>
+
+<!-- the last thing it says -->
+<div id="finale"><div id="finaleLine"></div></div>
+<div id="waitBtn"></div>
+
+<!-- the fall -->
+<div id="diveUI">
+  <div id="diveBar"><i></i></div>
+  <div id="divePull">PULL</div>
+</div>
+
+<audio id="bgm" src="assets/telepatia.mp3" loop preload="none"></audio>
+<button id="mute" aria-label="sound">♪</button>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
